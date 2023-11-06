@@ -1,8 +1,19 @@
-use std::process::{Command, Output};
+// use glob::glob;
+// use image;
+// use lcs_image_diff::compare;
+
+use std::{
+    env::current_dir,
+    path::{Path, PathBuf},
+};
 
 use clap::Parser;
 
-/// Simple program to greet a person
+use crate::git::get_current_branch;
+
+mod git;
+mod util;
+
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -16,30 +27,21 @@ struct Cli {
     path: Option<String>,
 }
 
-fn get_current_branch() -> Result<Vec<u8>, Vec<u8>> {
-    let current_branch = Command::new("git")
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .output()
-        .expect("failed to execute git rev-parse");
-
-    println!("{:?}", current_branch);
-
-    match current_branch.stderr[..] {
-        [] => Ok(current_branch.stdout),
-        _ => Err(current_branch.stderr),
-    }
-}
-
 fn main() {
     let args = Cli::parse();
 
-    if let Some(path) = args.path.as_deref() {
-        println!("path: {path}!");
-    }
-    println!("branch: {}!", args.branch);
+    let dir: PathBuf = current_dir().unwrap();
+    let base_dir: &Path = Path::new(&dir);
+    let report_dir: PathBuf = base_dir.join("diff-report");
 
-    let current_branch = get_current_branch();
-    println!("{:?}", current_branch)
+    if let Some(current_branch) = get_current_branch() {
+    } else {
+    }
+    let current_branch = match git::get_current_branch() {
+        Some(branch) => branch,
+        None => panic!("failed to get current branch name"),
+    };
+    println!("{}", current_branch);
+
+    util::copy_og_snaps(report_dir, args.branch);
 }

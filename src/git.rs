@@ -1,5 +1,5 @@
 use git2::{Reference, Repository};
-use std::env::current_dir;
+use std::{env::current_dir, process::Command};
 
 pub fn get_current_branch() -> Option<String> {
     let dir = current_dir().unwrap();
@@ -12,7 +12,7 @@ pub fn get_current_branch() -> Option<String> {
         Err(err) => panic!("failed to get current HEAD \n\n {}", err),
     };
     let current_branch = Reference::shorthand(&current_head);
-    return current_branch.map(str::to_string);
+    current_branch.map(str::to_string)
 }
 pub fn checkout_branch(refname: String) {
     println!("Checking out to {} branch...", refname);
@@ -34,4 +34,9 @@ pub fn checkout_branch(refname: String) {
         None => repo.set_head_detached(object.id()),
     }
     .expect("Failed to set HEAD");
+
+    Command::new("git")
+        .args(["lfs", "pull"])
+        .output()
+        .expect("failed to execute process");
 }

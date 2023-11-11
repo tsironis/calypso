@@ -9,6 +9,7 @@ use std::{
 
 use clap::Parser;
 
+mod diff;
 mod git;
 mod util;
 
@@ -37,9 +38,10 @@ fn main() {
         None => panic!("failed to get current branch name"),
     };
 
+    util::copy_snaps(report_dir.as_path(), "current_snapshots");
     git::checkout_branch(args.branch);
-    util::copy_snaps(&report_dir, "original_snapshots");
+    util::copy_snaps(report_dir.as_path(), "original_snapshots");
     git::checkout_branch(current_branch);
-    util::copy_snaps(&report_dir, "current_snapshots");
-    println!("diffing in place")
+    util::compare_snaps(report_dir.as_path());
+    println!("TODO create diff-report/index.html");
 }

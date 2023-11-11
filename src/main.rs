@@ -9,8 +9,6 @@ use std::{
 
 use clap::Parser;
 
-use crate::git::get_current_branch;
-
 mod git;
 mod util;
 
@@ -34,14 +32,14 @@ fn main() {
     let base_dir: &Path = Path::new(&dir);
     let report_dir: PathBuf = base_dir.join("diff-report");
 
-    if let Some(current_branch) = get_current_branch() {
-    } else {
-    }
     let current_branch = match git::get_current_branch() {
         Some(branch) => branch,
         None => panic!("failed to get current branch name"),
     };
-    println!("{}", current_branch);
 
-    util::copy_og_snaps(report_dir, args.branch);
+    git::checkout_branch(args.branch);
+    util::copy_snaps(&report_dir, "original_snapshots");
+    git::checkout_branch(current_branch);
+    util::copy_snaps(&report_dir, "current_snapshots");
+    println!("diffing in place")
 }

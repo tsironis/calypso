@@ -59,9 +59,9 @@ pub fn compare_snaps(report_dir: &Path) {
                 match create_diff_image(&diff_snap, &original_snap, &current_snap) {
                     Ok(ok) => {
                         if ok == 0 {
-                            println!("✅ {}", original_snap.file_name().unwrap());
+                            println!("✅ {:?}", original_snap.file_name().unwrap());
                         } else {
-                            println!("💀 {}", original_snap.file_name().unwrap());
+                            println!("💀 {:?}", original_snap.file_name().unwrap());
                         }
                     }
                     Err(err) => panic!("failed diff {}", err),

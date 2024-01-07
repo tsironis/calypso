@@ -12,3 +12,5 @@ glob = "0.3.1"
 image = "0.24.1"
 image-diff = "0.1.13"
 lcs-image-diff = "0.1.7"
+axum = "0.7.3"
+tokio = { version = "1.35.1", features = ["rt", "rt-multi-thread", "macros"] }

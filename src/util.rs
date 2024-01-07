@@ -1,3 +1,4 @@
+use askama::Template;
 use glob::glob;
 use image::imageops::FilterType;
 use image::GenericImageView;
@@ -127,4 +128,17 @@ pub fn create_diff_image(
     };
     fs::write(diff_snap, img_out.into_inner())?;
     Ok(num_diff_pixels)
+}
+
+#[derive(Template)]
+#[template(path = "template.html")]
+pub struct DiffTemplate<'a> {
+    name: &'a str,
+}
+
+pub fn create_report(report_dir: &Path) -> std::io::Result<()> {
+    let report_file = report_dir.join("index.html");
+    let hello = DiffTemplate { name: "Calypso" }; // instantiate your struct
+    fs::write(report_file, hello.render().unwrap())?;
+    Ok(())
 }

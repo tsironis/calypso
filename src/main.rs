@@ -1,17 +1,13 @@
-// use glob::glob;
-// use image;
-// use lcs_image_diff::compare;
-
 use std::{
     env::current_dir,
     path::{Path, PathBuf},
 };
 
-use axum::{routing::get, Router};
 use clap::Parser;
 
 mod diff;
 mod git;
+mod serve;
 mod util;
 
 #[derive(Parser, Debug)]
@@ -49,18 +45,11 @@ async fn main() {
     util::copy_snaps(report_dir.as_path(), "original_snapshots");
     git::checkout_branch(current_branch);
     util::compare_snaps(report_dir.as_path());
-    if args.serve {
-        serve().await;
+    match util::create_report(report_dir.as_path()) {
+        Ok(_ok) => (),
+        Err(err) => panic!("{}", err),
     }
-}
-
-async fn serve() {
-    // build our application with a single route
-    let app = Router::new().route("/", get(|| async { "Hello, World!" }));
-
-    // run our app with hyper, listening globally on port 3000
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Running reported at http://localhost:3000");
-    println!("TODO create diff-report/index.html");
-    axum::serve(listener, app).await.unwrap();
+    if args.serve {
+        serve::start().await;
+    }
 }

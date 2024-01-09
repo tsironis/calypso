@@ -1,31 +1,32 @@
+use anyhow::{Context, Result};
 use git2::{Reference, Repository};
-use std::{env::current_dir, process::Command};
+use std::{
+    env::current_dir,
+    process::{Command, Output},
+};
 
-pub fn get_current_branch() -> Option<String> {
-    let dir = current_dir().unwrap();
-    let repo = match Repository::discover(dir) {
-        Ok(repo) => repo,
-        Err(err) => panic!("failed to discover a git repository \n\n {}", err),
-    };
-    let current_head = match repo.head() {
-        Ok(reference) => reference,
-        Err(err) => panic!("failed to get current HEAD \n\n {}", err),
-    };
-    let current_branch = Reference::shorthand(&current_head);
-    current_branch.map(str::to_string)
+pub fn get_current_branch() -> Result<String> {
+    let dir = current_dir()?;
+    let repo = Repository::discover(&dir)
+        .with_context(|| format!("failed to discover git repository from {}", dir.display()))?;
+    let current_head = repo.head().context("failed to get current HEAD")?;
+    let current_branch = Reference::shorthand(&current_head)
+        .map(str::to_string)
+        .context("failed to get current branch name from current HEAD reference shorthand")?;
+    Ok(current_branch)
 }
-pub fn checkout_branch(refname: String) {
+
+pub fn checkout_branch(refname: String) -> Result<Output> {
     println!("Checking out to {} branch...", refname);
-    let dir = current_dir().unwrap();
-    let repo = match Repository::discover(dir) {
-        Ok(repo) => repo,
-        Err(err) => panic!("failed to discover a git repository \n\n {}", err),
-    };
+    let dir = current_dir()?;
+    let repo = Repository::discover(&dir)
+        .with_context(|| format!("failed to discover git repository from {}", dir.display()))?;
     let (object, reference) = repo
         .revparse_ext(refname.as_str())
-        .expect("Object not found");
+        .context("Object not found")?;
+
     repo.checkout_tree(&object, None)
-        .expect("Failed to checkout");
+        .context("Failed to checkout")?;
 
     match reference {
         // gref is an actual reference like branches or tags
@@ -33,10 +34,10 @@ pub fn checkout_branch(refname: String) {
         // this is a commit, not a reference
         None => repo.set_head_detached(object.id()),
     }
-    .expect("Failed to set HEAD");
+    .context("Failed to set head")?;
 
     Command::new("git")
         .args(["lfs", "pull"])
         .output()
-        .expect("failed to execute process");
+        .context("failed to execute `git lfs pull`")
 }

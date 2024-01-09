@@ -1,3 +1,4 @@
+use anyhow::{bail, Result};
 use core::f64;
 use image::{
     codecs::png::PngDecoder, DynamicImage, GenericImage, GenericImageView, ImageOutputFormat, Rgba,
@@ -42,22 +43,18 @@ pub fn pixelmatch<IMG1: Read, IMG2: Read, OUT: Write + Seek>(
     width: Option<u32>,
     height: Option<u32>,
     options: Option<Options>,
-) -> Result<usize, Box<dyn std::error::Error>> {
+) -> Result<usize> {
     let img1 = DynamicImage::from_decoder(PngDecoder::new(img1)?)?;
     let img2 = DynamicImage::from_decoder(PngDecoder::new(img2)?)?;
 
     let img1_dimensions = img1.dimensions();
     if img1.dimensions() != img2.dimensions() {
-        return Err(<Box<dyn std::error::Error>>::from(
-            "Image sizes do not match.",
-        ));
+        bail!("Image sizes do not match.");
     }
 
     if let (Some(width), Some(height)) = (width, height) {
         if (width, height) != img1_dimensions {
-            return Err(<Box<dyn std::error::Error>>::from(
-                "Image data size does not match width/height.",
-            ));
+            bail!("Image data size does not match width/height.");
         }
     }
 
@@ -324,11 +321,9 @@ fn draw_gray_pixel(
     (x, y, rgba): &(u32, u32, Rgba<u8>),
     alpha: f64,
     output: &mut DynamicImage,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     if !output.in_bounds(*x, *y) {
-        return Err(<Box<dyn std::error::Error>>::from(
-            "Pixel is not in bounds of output.",
-        ));
+        bail!("Pixel is not in bounds of output.",);
     }
 
     let val = blend(

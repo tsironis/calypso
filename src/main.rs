@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use anyhow::{Context, Result};
 use clap::Parser;
 
 mod diff;
@@ -28,28 +29,23 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Cli::parse();
 
-    let dir: PathBuf = current_dir().unwrap();
+    let dir: PathBuf = current_dir()?;
     let base_dir: &Path = Path::new(&dir);
     let report_dir: PathBuf = base_dir.join("diff-report");
 
-    let current_branch = match git::get_current_branch() {
-        Some(branch) => branch,
-        None => panic!("failed to get current branch name"),
-    };
+    let current_branch = git::get_current_branch().context("failed to get current branch name")?;
 
-    util::copy_snaps(report_dir.as_path(), "current_snapshots");
-    git::checkout_branch(args.branch);
-    util::copy_snaps(report_dir.as_path(), "original_snapshots");
-    git::checkout_branch(current_branch);
-    util::compare_snaps(report_dir.as_path());
-    match util::create_report(report_dir.as_path()) {
-        Ok(_ok) => (),
-        Err(err) => panic!("{}", err),
-    }
+    util::copy_snaps(report_dir.as_path(), "current_snapshots")?;
+    git::checkout_branch(args.branch)?;
+    util::copy_snaps(report_dir.as_path(), "original_snapshots")?;
+    git::checkout_branch(current_branch)?;
+    util::compare_snaps(report_dir.as_path())?;
+    util::create_report(report_dir.as_path())?;
     if args.serve {
-        serve::start().await;
+        serve::start().await?;
     }
+    Ok(())
 }

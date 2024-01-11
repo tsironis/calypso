@@ -16,7 +16,7 @@ pub fn get_current_branch() -> Result<String> {
     Ok(current_branch)
 }
 
-pub fn checkout_branch(refname: String) -> Result<Output> {
+pub fn checkout_branch(refname: &String) -> Result<Output> {
     println!("Checking out to {} branch...", refname);
     let dir = current_dir()?;
     let repo = Repository::discover(&dir)

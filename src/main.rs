@@ -26,26 +26,32 @@ struct Cli {
     /// Enable the serving of the reporter web app
     #[arg(short, long)]
     serve: bool,
+    /// Enable logging of calculating time for each snapshot
+    #[arg(short, long)]
+    verbose: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Cli::parse();
 
+    // gather env info
     let dir: PathBuf = current_dir()?;
     let base_dir: &Path = Path::new(&dir);
     let report_dir: PathBuf = base_dir.join("diff-report");
-
     let current_branch = git::get_current_branch().context("failed to get current branch name")?;
-
+    // prepare filesystem by coping snapshots from target branch
     util::copy_snaps(report_dir.as_path(), "current_snapshots")?;
-    git::checkout_branch(args.branch)?;
+    git::checkout_branch(&args.branch)?;
     util::copy_snaps(report_dir.as_path(), "original_snapshots")?;
-    git::checkout_branch(current_branch)?;
-    util::compare_snaps(report_dir.as_path())?;
-    util::create_report(report_dir.as_path())?;
+    git::checkout_branch(&current_branch)?;
+    // actual comparsion of snapshots and created diff image files
+    let snaps = util::compare_snaps(report_dir.as_path(), &args)?;
+    // create html reporter file
+    util::create_report(report_dir.as_path(), snaps, current_branch, args.branch)?;
+    // start axum server
     if args.serve {
-        serve::start().await?;
+        serve::start(report_dir).await?;
     }
     Ok(())
 }

@@ -4,10 +4,11 @@ use image::imageops::FilterType;
 use image::GenericImageView;
 use std::io::Cursor;
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time;
 use std::{cmp, fs};
 
+use crate::Cli;
 use anyhow::{Context, Result};
 
 use super::diff::{pixelmatch, Options};
@@ -42,59 +43,79 @@ pub fn copy_snaps(report_dir: &Path, dest: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn compare_snaps(report_dir: &Path) -> Result<()> {
+#[derive(Debug)]
+pub struct Snap {
+    name: String,
+    original: PathBuf,
+    current: PathBuf,
+    diff: PathBuf,
+    error: f64,
+    num_diff_pixels: usize,
+}
+
+pub fn compare_snaps(report_dir: &Path, args: &Cli) -> Result<Vec<Snap>, anyhow::Error> {
     let original_dir = report_dir.join("original_snapshots");
     let current_dir = report_dir.join("current_snapshots");
     let diff_dir = report_dir.join("diff_snapshots");
-    let entries = glob(GLOB_PATTERN)
-        .with_context(|| format!("Failed to read glob pattern {}", GLOB_PATTERN))?;
-    for entry in entries {
-        let path = entry.with_context(|| {
-            format!(
-                "Failed to process entry in glob iterator for pattern {}",
-                GLOB_PATTERN
-            )
-        })?;
-        // copy
-        let original_snap = original_dir.join(path.as_path());
-        let current_snap = current_dir.join(path.as_path());
-        // .to_str()
-        // .map(str::to_string)
-        // .unwrap();
-        if !original_snap.exists() {
-            println!(
-                "✋ Original snapshot named {} not found",
-                original_snap.display()
-            );
-            continue;
-        }
-        if !current_snap.exists() {
-            println!(
-                "✋ Latest snapshot named {} not found",
-                original_snap.display()
-            );
-            break;
-        }
-        let diff_snap = diff_dir.join(path.as_path());
-        let res = create_diff_image(&diff_snap, &original_snap, &current_snap)
-            .context("failed to create diff image")?;
-        if res == 0 {
-            println!("✅ {:?}", original_snap.file_name().unwrap());
-        } else {
-            println!("💀 {:?}", original_snap.file_name().unwrap());
+    let mut snaps: Vec<Snap> = Vec::new();
+    for entry in glob("tests/**/*.png").expect("Failed to read glob pattern") {
+        match entry {
+            Ok(path) => {
+                // copy
+                let original = original_dir.join(path.as_path());
+                let current = current_dir.join(path.as_path());
+                if !original.exists() {
+                    println!(
+                        "✋ Original snapshot named {} not found",
+                        original.display()
+                    );
+                    continue;
+                }
+                if !current.exists() {
+                    println!("✋ Latest snapshot named {} not found", original.display());
+                    break;
+                }
+                let diff = diff_dir.join(path.as_path());
+                match create_diff_image(&diff, &original, &current, &args) {
+                    Ok((error, num_diff_pixels)) => {
+                        let file_name = original.strip_prefix(&original_dir)?;
+                        if num_diff_pixels == 0 {
+                            println!("✅ {}", file_name.display());
+                        } else {
+                            println!("💀 {}", file_name.display());
+                        }
+                        let snap = Snap {
+                            name: original
+                                .file_name()
+                                .unwrap()
+                                .to_owned()
+                                .into_string()
+                                .unwrap(),
+                            original: original.strip_prefix(report_dir).unwrap().to_path_buf(),
+                            current: current.strip_prefix(report_dir).unwrap().to_path_buf(),
+                            diff: diff.strip_prefix(report_dir).unwrap().to_path_buf(),
+                            error,
+                            num_diff_pixels,
+                        };
+                        snaps.push(snap)
+                    }
+                    Err(err) => panic!("failed diff {}", err),
+                }
+            }
+            Err(e) => println!("{:?}", e),
         }
     }
-    Ok(())
+    return Ok(snaps);
 }
 
 pub fn create_diff_image(
     diff_snap: &Path,
     original_snap: &Path,
     current_snap: &Path,
-) -> Result<usize> {
+    args: &Cli,
+) -> Result<(f64, usize)> {
     let mut before = image::open(original_snap)?;
     let mut after = image::open(current_snap)?;
-
     let mut img_out = Cursor::new(Vec::new());
     let output = match Some(diff_snap) {
         Some(..) => Some(&mut img_out),
@@ -129,12 +150,13 @@ pub fn create_diff_image(
             ..Default::default()
         }),
     )?;
-    // println!("matched in: {}ms", now.elapsed().as_millis());
+    if args.verbose {
+        println!("   matched in: {}ms", now.elapsed().as_millis())
+    }
 
     let error = ((100.0 * 100.0 * num_diff_pixels as f64) / (width1 as f64 * height1 as f64))
         .round()
         / 100.0;
-    // println!("error: {}%", error);
 
     if let Some(p) = diff_snap.parent() {
         fs::create_dir_all(p).with_context(|| {
@@ -145,18 +167,31 @@ pub fn create_diff_image(
         })?
     };
     fs::write(diff_snap, img_out.into_inner())?;
-    Ok(num_diff_pixels)
+    Ok((error, num_diff_pixels))
 }
 
 #[derive(Template)]
 #[template(path = "template.html")]
 pub struct DiffTemplate<'a> {
     name: &'a str,
+    snaps: Vec<Snap>,
+    current_branch: String,
+    dest_branch: String,
 }
 
-pub fn create_report(report_dir: &Path) -> Result<()> {
+pub fn create_report(
+    report_dir: &Path,
+    snaps: Vec<Snap>,
+    dest_branch: String,
+    current_branch: String,
+) -> Result<()> {
     let report_file = report_dir.join("index.html");
-    let hello = DiffTemplate { name: "Calypso" }; // instantiate your struct
-    fs::write(report_file, hello.render()?)?;
+    let diff_template = DiffTemplate {
+        name: "Calypso",
+        snaps,
+        current_branch,
+        dest_branch,
+    }; // instantiate your struct
+    fs::write(report_file, diff_template.render().unwrap())?;
     Ok(())
 }

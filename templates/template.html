@@ -2,13 +2,28 @@
 <html lang="en">
 
 <head>
-  <link rel="stylesheet" href="/_assets/theme.css" />
-  <link rel="icon" type="image/x-icon" href="/_assets/favicon.svg" />
-  <title>Template</title>
+  <link rel="stylesheet" href="/assets/theme.css" />
+  <link rel="icon" type="image/x-icon" href="/assets/favicon.svg" />
+  <title>{{name}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
 <body>
-  Hello, {{name}}!
+  <h1 class="text-xl">{{name}}</h1>
+  <span>Merging {{current_branch}} into {{dest_branch}} branch</span>
+  <ul>
+    {% for snap in snaps %}
+    <li>
+      <h2 class="text-lg">{{ snap.name }}</h2>
+      <div>{{ snap.error}}% - {{ snap.num_diff_pixels }} pixels have changed</div>
+      <div class="flex">
+        <div><img src="{{ snap.original.display()|e }}" /></div>
+        <div><img src="{{ snap.current.display()|e }}" /></div>
+        <div><img src="{{ snap.diff.display()|e }}" /></div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
 </body>
 
 </html>

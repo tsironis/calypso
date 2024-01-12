@@ -85,12 +85,7 @@ pub fn compare_snaps(report_dir: &Path, args: &Cli) -> Result<Vec<Snap>, anyhow:
                             println!("💀 {}", file_name.display());
                         }
                         let snap = Snap {
-                            name: original
-                                .file_name()
-                                .unwrap()
-                                .to_owned()
-                                .into_string()
-                                .unwrap(),
+                            name: file_name.display().to_string(),
                             original: original.strip_prefix(report_dir).unwrap().to_path_buf(),
                             current: current.strip_prefix(report_dir).unwrap().to_path_buf(),
                             diff: diff.strip_prefix(report_dir).unwrap().to_path_buf(),
@@ -125,7 +120,6 @@ pub fn create_diff_image(
     let (width2, height2) = after.dimensions();
     let width = cmp::max(width1, width2);
     let height = cmp::max(height1, height2);
-    // println!("w: {:?} h: {:?}", width, height);
     before = before.resize_exact(width, height, FilterType::Triangle);
     after = after.resize_exact(width, height, FilterType::Nearest);
     before.save(original_snap)?;
@@ -134,8 +128,6 @@ pub fn create_diff_image(
     let (width2, height2) = after.dimensions();
     let width = cmp::max(width1, width2);
     let height = cmp::max(height1, height2);
-    // println!("1: {:?} 2: {:?}", before.dimensions(), after.dimensions());
-    // println!("w: {:?} h: {:?}", width, height);
     let now = time::Instant::now();
     let img1 = fs::read(original_snap)?;
     let img2 = fs::read(current_snap)?;

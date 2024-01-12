@@ -21,3 +21,4 @@ askama = "0.12.1"
 anyhow = "1.0.79"
 axum-embed = "0.1.0"
 rust-embed = "8.2.0"
+leptos = { version = "0.5.4", features = ["csr", "nightly"] }

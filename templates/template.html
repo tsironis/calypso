@@ -5,6 +5,7 @@
   <link rel="stylesheet" href="/assets/theme.css" />
   <link rel="icon" type="image/x-icon" href="/assets/favicon.svg" />
   <title>{{name}}</title>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@2.6.0/dist/full.css" rel="stylesheet" type="text/css" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 
@@ -13,17 +14,66 @@
   <span>Merging {{current_branch}} into {{dest_branch}} branch</span>
   <ul>
     {% for snap in snaps %}
-    <li>
-      <h2 class="text-lg">{{ snap.name }}</h2>
-      <div>{{ snap.error}}% - {{ snap.num_diff_pixels }} pixels have changed</div>
-      <div class="flex">
-        <div><img src="{{ snap.original.display()|e }}" /></div>
-        <div><img src="{{ snap.current.display()|e }}" /></div>
-        <div><img src="{{ snap.diff.display()|e }}" /></div>
-      </div>
+    <li class="border-b border-gray-500">
+      <details open id="{{ snap.name }}" data-error="{{snap.error}}">
+        <summary>
+          <div>
+            <h2>{{ snap.name }}</h2>
+            <div>{{ snap.error}}% - {{ snap.num_diff_pixels }} pixels have changed</div>
+          </div>
+        </summary>
+        <div class="flex mx-2">
+          <div><img src="{{ snap.original.display()|e }}" /></div>
+          <div><img src="{{ snap.current.display()|e }}" /></div>
+          <div><img src="{{ snap.diff.display()|e }}" /></div>
+        </div>
+      </details>
     </li>
     {% endfor %}
   </ul>
+  <style>
+    .rejected {
+      color: #d4351c;
+      text-decoration: line-through;
+      font-weight: bolder;
+    }
+
+    .rejected:before {
+      content: '❌'
+    }
+
+    .approved {
+      color: #00703c;
+    }
+
+    .accepted:before {
+      content: '✅'
+    }
+  </style>
+  <script>
+    (() => {
+      document.addEventListener('keypress', function (e) {
+        const el = document.querySelector('details[open]');
+        // a or n keycodes
+        if (e.keyCode === 97 || e.keyCode === 110) {
+          el.removeAttribute('open');
+          el.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest", alignToTop: true});
+          if (e.keyCode === 97) {
+            el.classList.add("approved")
+          }
+        }
+        if (e.keyCode === 112) {
+          document.querySelector('details:not([open])').addAttribute('open');
+        }
+        if (e.keyCode === 106) {
+          el.removeAttribute('open');
+          el.scrollIntoView({behavior: "smooth", block: "end", inline: "nearest", alignToTop: true});
+          el.classList.add("rejected")
+        }
+        window.location.href = `#${el.id}`;
+      });
+    })()
+  </script>
 </body>
 
 </html>
